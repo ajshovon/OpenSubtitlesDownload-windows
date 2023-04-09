@@ -6,6 +6,41 @@ OpenSubtitlesDownload.py
 [![GitHub issues](https://img.shields.io/github/issues/emericg/OpenSubtitlesDownload.svg?style=flat-square)](https://github.com/emericg/OpenSubtitlesDownload/issues)
 [![License: GPL v3](https://img.shields.io/badge/license-GPL%20v3-brightgreen.svg?style=flat-square)](http://www.gnu.org/licenses/gpl-3.0)
 
+# FORK INFO
+
+## Use OpenSubtitlesDownload.py Script Easily On Windows
+
+This fork contains files required for windows to add context menu for media file types (.mp4 & .mkv) and folder containing media to search subtitles easily.
+
+### How To Use
+
+- Clone or download this repo
+- Add opensubtitles.org account info in `OpenSubtitlesDownload.py`, line 53 & 53. You may change other settings here based on your requirements. Read the readme below and checkout wiki page to explore all configs.
+- Copy the repo folder `OpenSubtitlesDownload-windows` in `C:/utils/`. If the utils folder does not exit on C drive, make one or edit path in `.bat` & `.reg` files
+- Run required `.reg` files from reg-files folder to add context menu depending on what you need. Reg files explained here:
+
+    - Run "add_all_types.reg" to add context menu for all file types
+
+        - Run "rem_all_types.reg" to undo this
+
+    - Run "add_media_types.reg" to add context menu for mp4 & mkv files
+
+    - Run "add_folder.reg" to add Find Subtitle context menu option for folders
+
+Reg keys added:
+```
+HKEY_CLASSES_ROOT\*\shell\Subtitle
+HKEY_CLASSES_ROOT\Directory\shell\Subtitle
+HKEY_CLASSES_ROOT\SystemFileAssociations\.mp4\shell\Subtitle
+HKEY_CLASSES_ROOT\SystemFileAssociations\.mkv\shell\Subtitle
+```
+
+You should see a option on right click called "Find Subtitles" and should work if done right.
+
+To change icon, rename any icon to i.ico. You may need reboot to reflect changes.
+
+# Original Readme
+
 ## Introduction
 
 **OpenSubtitlesDownload.py** is a small software written in Python, built to help you **quickly find and download subtitles** for your favorite videos. It can be used as a nautilus script, or as a regular application working under GNOME or KDE desktop environments. You can also use it in full CLI mode (Command Line Interface) on your NAS, Raspberry Pi or anywhere you want really, as long as you have a working Python interpreter.
