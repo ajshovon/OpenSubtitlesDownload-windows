@@ -3,6 +3,6 @@
 set files=%*
 
 REM Set the correct path to your OpenSubtitlesDownload.py executable here
-python "C:\OpenSubtitlesDownload.py" --cli -a %files%
+python "C:\utils\OpenSubtitlesDownload-windows\OpenSubtitlesDownload.py" --cli -i -a %files%
 
 @pause
