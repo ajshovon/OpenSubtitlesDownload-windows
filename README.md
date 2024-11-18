@@ -36,10 +36,10 @@ The subtitles search and download service is powered by [opensubtitles.com](http
 
 #### Requirements
 
-- Python 3
-- zenity (only needed for GNOME based desktop environments)
-- kdialog (only needed for KDE based desktop environments)
-- Common unix tools (only needed for GUIs): wget, ps & grep (GUI autodetection)
+- `python` (version 3.6+)
+- `zenity` (only needed for GNOME based desktop environments)
+- `kdialog` (only needed for KDE based desktop environments)
+- Common unix tools `ps` & `grep` (for GUI autodetection) and `wget` (for GNOME downloads)
 
 #### Quick installation (nautilus script, with GNOME desktop environment)
 

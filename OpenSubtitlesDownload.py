@@ -147,7 +147,7 @@ opt_selection_count    = 'off'
 def checkFileValidity(path):
     """Check mimetype and/or file extension to detect valid video file"""
     if os.path.isfile(path) is False:
-        superPrint("info", "File not found", "The file provided was not found:\n<i>" + path + "</i>")
+        superPrint("info", "File not found", f"The file provided was not found:\n<i>{path}</i>")
         return False
 
     fileMimeType, encoding = mimetypes.guess_type(path)
@@ -563,11 +563,11 @@ def pythonChecker():
 
 def dependencyChecker():
     """Check the availability of tools used as dependencies"""
-    if opt_gui != 'cli':
-        for tool in ['gunzip', 'wget']:
+    if opt_gui == 'gnome':
+        for tool in ['wget']:
             path = shutil.which(tool)
             if path is None:
-                superPrint("error", "Missing dependency!", "The <b>'" + tool + "'</b> tool is not available, please install it!")
+                superPrint("error", "Missing dependency!", "<b>" + tool + "</b> is not available, please install it!")
                 return False
     return True
 
