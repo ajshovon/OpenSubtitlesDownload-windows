@@ -519,6 +519,10 @@ def selectionCLI(subtitlesResultList):
         if opt_selection_count == 'on':
             subtitlesItemPost += ' > ' + '\033[100m' + 'Downloads: ' + str(item['attributes']['download_count']) + '\033[0m'
 
+        # type # season_number # episode_number
+        if (item['attributes']['feature_details'].get('season_number', 0) != 0 and item['attributes']['feature_details'].get('episode_number', 0) != 0):
+            subtitlesItemPost += ' > ' + '\033[100m' + 'S' + str(item['attributes']['feature_details']['season_number']).zfill(2) + 'E' + str(item['attributes']['feature_details']['episode_number']).zfill(2) + '\033[0m'
+
         idx += 1 # We display subtitles indexes starting from 1, 0 is reserved for cancel
 
         if item['attributes'].get('moviehash_match', False) == True:
