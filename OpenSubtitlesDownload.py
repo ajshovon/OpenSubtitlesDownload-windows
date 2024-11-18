@@ -26,7 +26,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
-import re
 import sys
 import time
 import shutil
@@ -147,7 +146,7 @@ opt_selection_count    = 'off'
 def checkFileValidity(path):
     """Check mimetype and/or file extension to detect valid video file"""
     if os.path.isfile(path) is False:
-        superPrint("info", "File not found", f"The file provided was not found:\n<i>{path}</i>")
+        superPrint("info", "File not found", f"The file provided was not found:<br><i>{path}</i>")
         return False
 
     fileMimeType, encoding = mimetypes.guess_type(path)
@@ -156,12 +155,12 @@ def checkFileValidity(path):
         if fileExtension[1] not in ['avi', 'mov', 'mp4', 'mp4v', 'm4v', 'mkv', 'mk3d', 'webm', \
                                     'ts', 'mts', 'm2ts', 'ps', 'vob', 'evo', 'mpeg', 'mpg', \
                                     'asf', 'wm', 'wmv', 'rm', 'rmvb', 'divx', 'xvid']:
-            #superPrint("error", "File type error!", "This file is not a video (unknown mimetype AND invalid file extension):\n<i>" + path + "</i>")
+            #superPrint("error", "File type error!", f"This file is not a video (unknown mimetype AND invalid file extension):<br><i>{path}</i>")
             return False
     else:
         fileMimeType = fileMimeType.split('/', 1)
         if fileMimeType[0] != 'video':
-            #superPrint("error", "File type error!", "This file is not a video (unknown mimetype):\n<i>" + path + "</i>")
+            #superPrint("error", "File type error!", f"This file is not a video (unknown mimetype):<br><i>{path}</i>")
             return False
 
     return True
@@ -186,7 +185,7 @@ def checkSubtitlesExists(path):
         for teststring in tryList:
             subPath = path.rsplit('.', 1)[0] + teststring + '.' + ext
             if os.path.isfile(subPath) is True:
-                superPrint("info", "Subtitles already downloaded!", "A subtitles file already exists for this file:\n<i>" + subPath + "</i>")
+                superPrint("info", "Subtitles already downloaded!", f"A subtitles file already exists for this file:<br><i>{subPath}</i>")
                 return True
 
     return False
@@ -209,7 +208,7 @@ def hashFile(path):
         filehash = filesize
 
         if filesize < 65536 * 2:
-            superPrint("error", "File size error!", "File size error while generating hash for this file:\n<i>" + path + "</i>")
+            superPrint("error", "File size error!", f"File size error while generating hash for this file:<br><i>{path}</i>")
             return "SizeError"
 
         buf = f.read(65536)
@@ -227,28 +226,38 @@ def hashFile(path):
         return returnedhash
 
     except IOError:
-        superPrint("error", "I/O error!", "Input/Output error while generating hash for this file:\n<i>" + path + "</i>")
+        superPrint("error", "I/O error!", f"Input/Output error while generating hash for this file:<br><i>{path}</i>")
         return "IOError"
 
     except Exception:
         print("Unexpected error (line " + str(sys.exc_info()[-1].tb_lineno) + "): " + str(sys.exc_info()[0]))
 
 # ==== String escaping =========================================================
+# Title and filename may need string sanitizing to avoid zenity/kdialog handling errors
 
-def escapeGUI(string):
+def escapeGUI_title(string):
     if opt_gui != 'cli':
+        string = string.replace('"', '\\"')
+    return string
+
+def escapeGUI_zenity(string):
+    if opt_gui == 'gnome':
         string = string.replace('"', '\\"')
         string = string.replace("'", "\\'")
         string = string.replace('`', '\\`')
         string = string.replace("&", "&amp;")
     return string
 
-def escapePath(string):
-    if opt_gui != 'cli':
-        return escapeGUI(string)
-        return re.escape(string) # too much
-    else:
-        return string
+def escapeGUI_kdialog(string):
+    if opt_gui == 'kde':
+        string = string.replace('"', '\\"')
+        string = string.replace('`', '\\`')
+    return string
+
+def escapePath_wget(string):
+    string = string.replace('"', '\\"')
+    string = string.replace('`', '\\`')
+    return string
 
 # ==== Super Print =============================================================
 # priority: info, warning, error
@@ -258,22 +267,26 @@ def escapePath(string):
 def superPrint(priority, title, message):
     """Print messages through terminal, zenity or kdialog"""
     if opt_gui == 'gnome':
-        subprocess.call(['zenity', '--width=' + str(opt_gui_width), '--' + priority, '--title=' + title, '--text=' + message])
+        # Adapt to zenity
+        message = message.replace("<br>", "\n")
+        # Escape
+        message = escapeGUI_zenity(message)
+        # Print message
+        subprocess.call(['zenity', '--width=' + str(opt_gui_width), f'--{priority}', f'--title={title}', f'--text={message}'])
     elif opt_gui == 'kde':
         # Adapt to kdialog
         message = message.replace("\n", "<br>")
-        message = message.replace('\\"', '"')
-        message = message.replace("\\'", "'")
         if priority == 'warning':
             priority = 'sorry'
         elif priority == 'info':
             priority = 'msgbox'
         # Print message
-        subprocess.call(['kdialog', '--geometry=' + str(opt_gui_width) + 'x' + str(opt_gui_height) + '+0+0', '--title=' + title, '--' + priority + '=' + message])
+        subprocess.call(['kdialog', '--geometry=' + str(opt_gui_width-220) + 'x' + str(opt_gui_height-128) + '+128+128', f'--title={title}', f'--{priority}={message}'])
     else:
-        # Clean up format tags from the zenity string
+        # Clean up format tags and line breaks
         message = message.replace("\n\n", "\n")
-        message = message.replace('\\"', '"')
+        message = message.replace("<br><br>", "\n")
+        message = message.replace("<br>", "\n")
         message = message.replace("<i>", "")
         message = message.replace("</i>", "")
         message = message.replace("<b>", "")
@@ -298,6 +311,10 @@ def selectionGnome(subtitlesResultList):
     columnCount = ''
     columnFPS = ''
 
+    videoTitle_window = escapeGUI_title(videoTitle)
+    videoTitle_escaped = escapeGUI_zenity(videoTitle)
+    videoFileName_escaped = escapeGUI_zenity(videoFileName)
+
     # Generate selection window content
     for idx, item in enumerate(subtitlesResultList['data']):
         if opt_ignore_hi and item['attributes'].get('hearing_impaired', False) == True:
@@ -314,7 +331,7 @@ def selectionGnome(subtitlesResultList):
         else:
             subtitlesMatchedByName += 1
 
-        subtitlesItems += f'{idx} "' + escapeGUI(item['attributes']['files'][0]['file_name']) + '" '
+        subtitlesItems += f'{idx} "' + escapeGUI_zenity(item['attributes']['files'][0]['file_name']) + '" '
 
         if opt_selection_hi == 'on':
             columnHi = '--column="HI" '
@@ -342,19 +359,19 @@ def selectionGnome(subtitlesResultList):
             subtitlesItems += '"' + str(item['attributes']['fps']) + '" '
 
     if subtitlesMatchedByName == 0:
-        tilestr = ' --title="Subtitles for: ' + videoTitle + '"'
-        textstr = ' --text="<b>Video title:</b> ' + videoTitle + '\n<b>File name:</b> ' + videoFileName + '"'
+        tilestr = f' --title="Subtitles for: {videoTitle_window}" '
+        textstr = f' --text="<b>Video title:</b> {videoTitle_escaped}\n<b>File name:</b> {videoFileName_escaped}" '
     elif subtitlesMatchedByHash == 0:
-        tilestr = ' --title="Subtitles for: ' + videoFileName + '"'
-        textstr = ' --text="Search results using file name, NOT video detection. <b>May be unreliable...</b>\n<b>File name:</b> ' + videoFileName + '" '
+        tilestr = ' --title="Subtitles Search" '
+        textstr = f' --text="Search results using file name, NOT video detection. <b>May be unreliable...</b>\n<b>File name:</b> {videoFileName_escaped}" '
     else: # a mix of the two
-        tilestr = ' --title="Subtitles for: ' + videoTitle + '"'
-        textstr = ' --text="Search results using file name AND video detection.\n<b>Video title:</b> ' + videoTitle + '\n<b>File name:</b> ' + videoFileName + '"'
+        tilestr = f' --title="Subtitles for: {videoTitle_window}" '
+        textstr = f' --text="Search results using file name AND video detection.\n<b>Video title:</b> {videoTitle_escaped}\n<b>File name:</b> {videoFileName_escaped}" '
 
     # Spawn zenity "list" dialog
-    process_subtitlesSelection = subprocess.Popen('zenity --width=' + str(opt_gui_width) + ' --height=' + str(opt_gui_height) + ' --list' + tilestr + textstr
-                                                  + ' --column "id" --column="Available subtitles" ' + columnHi + columnLn + columnMatch + columnRate + columnCount + columnFPS + subtitlesItems
-                                                  + ' --hide-column=1 --print-column=ALL', shell=True, stdout=subprocess.PIPE)
+    process_subtitlesSelection = subprocess.Popen('zenity --width=' + str(opt_gui_width) + ' --height=' + str(opt_gui_height) + ' --list' + tilestr + textstr + ' --column "id" --hide-column=1 ' +
+                                                  '--column="Available subtitles" ' + columnHi + columnLn + columnMatch + columnRate + columnCount + columnFPS + subtitlesItems + ' --print-column=ALL',
+                                                  shell=True, stdout=subprocess.PIPE)
 
     # Get back the user's choice
     result_subtitlesSelection = process_subtitlesSelection.communicate()
@@ -384,6 +401,10 @@ def selectionKDE(subtitlesResultList):
     subtitlesMatchedByHash = 0
     subtitlesMatchedByName = 0
 
+    videoTitle_window = videoTitle
+    videoTitle_escaped = videoTitle
+    videoFileName_escaped = escapeGUI_kdialog(videoFileName)
+
     # Generate selection window content
     # TODO doesn't support additional columns
     index = 0
@@ -408,17 +429,17 @@ def selectionKDE(subtitlesResultList):
         index += 1
 
     if subtitlesMatchedByName == 0:
-        tilestr = ' --title="Subtitles for ' + videoTitle + '"'
-        menustr = ' --menu="<b>Video title:</b> ' + videoTitle + '<br><b>File name:</b> ' + videoFileName + '" '
+        tilestr = f' --title="Subtitles for {videoTitle_window}" '
+        menustr = f' --menu="<b>Video title:</b> {videoTitle_escaped}<br><b>File name:</b> {videoFileName_escaped}" '
     elif subtitlesMatchedByHash == 0:
-        tilestr = ' --title="Subtitles for ' + videoFileName + '"'
-        menustr = ' --menu="Search results using file name, NOT video detection. <b>May be unreliable...</b><br><b>File name:</b> ' + videoFileName + '" '
+        tilestr = ' --title="Subtitles Search" '
+        menustr = f' --menu="Search results using file name, NOT video detection. <b>May be unreliable...</b><br><b>File name:</b> {videoFileName_escaped}" '
     else: # a mix of the two
-        tilestr = ' --title="Subtitles for ' + videoTitle + '" '
-        menustr = ' --menu="Search results using file name AND video detection.<br><b>Video title:</b> ' + videoTitle + '<br><b>File name:</b> ' + videoFileName + '" '
+        tilestr = f' --title="Subtitles for {videoTitle_window}" '
+        menustr = f' --menu="Search results using file name AND video detection.<br><b>Video title:</b> {videoTitle_escaped}<br><b>File name:</b> {videoFileName_escaped}" '
 
     # Spawn kdialog "radiolist"
-    process_subtitlesSelection = subprocess.Popen('kdialog --geometry=' + str(opt_gui_width) + 'x' + str(opt_gui_height) + '+0+0' + tilestr + menustr + subtitlesItems,
+    process_subtitlesSelection = subprocess.Popen('kdialog --geometry=' + str(opt_gui_width-220) + 'x' + str(opt_gui_height-128) + f'+128+128 {tilestr} {menustr} {subtitlesItems}',
                                                   shell=True, stdout=subprocess.PIPE)
 
     # Get back the user's choice
@@ -567,7 +588,7 @@ def dependencyChecker():
         for tool in ['wget']:
             path = shutil.which(tool)
             if path is None:
-                superPrint("error", "Missing dependency!", "<b>" + tool + "</b> is not available, please install it!")
+                superPrint("error", "Missing dependency!", f"<b>{tool}</b> is not available, please install it!")
                 return False
     return True
 
@@ -714,8 +735,8 @@ ExitCode = 2
 videoPathList = []
 languageList = []
 
-currentVideoPath = ""
-currentLanguage = ""
+currentVideoPath = u""
+currentLanguage = u""
 
 # ==== Argument parsing
 
@@ -918,7 +939,7 @@ try:
                 #print(f"SEARCH BY NAME >>>>> length {len(subtitlesResultList['data'])} >>>>> {subtitlesResultList['data']}")
 
     except Exception:
-        superPrint("error", "Search error!", "Unable to reach opensubtitles.com servers!\n<b>Search error</b>")
+        superPrint("error", "Search error!", "Unable to reach opensubtitles.com servers!<br><b>Search error</b>")
         sys.exit(2)
 
     ## Parse the results of the search query
@@ -939,10 +960,6 @@ try:
             if item['attributes'].get('moviehash_match', False) == True:
                 videoTitle = item['attributes']['feature_details']['movie_name']
                 break
-
-        # Title and filename may need string sanitizing to avoid zenity/kdialog handling errors
-        videoTitle = escapeGUI(videoTitle)
-        videoFileName = escapeGUI(videoFileName)
 
         # If there is more than one subtitles and opt_selection_mode != 'auto',
         # then let the user decide which one will be downloaded
@@ -986,7 +1003,7 @@ try:
             fileInfo = getSubtitlesInfo(USER_TOKEN, fileId)
 
             # Quote the URL to avoid characters like brackets () causing errors in wget command below
-            subURL = f"\'{fileInfo['link']}\'"
+            subURL = fileInfo['link']
             subSuffix = subURL.split('.')[-1].strip("'")
             subLangName = subtitlesResultList['data'][int(subIndex)]['attributes']['language']
             subPath = u''
@@ -1002,27 +1019,27 @@ try:
             if opt_language_suffix == 'on':
                 subPath = subPath.rsplit('.', 1)[0] + opt_language_suffix_separator + subtitlesResultList['data'][int(subIndex)]['attributes']['language'] + '.' + subSuffix
 
-            # Empty videoTitle?
+            # Empty videoTitle? Use filename
             if not videoTitle:
                 videoTitle = videoFileName
 
             ## Download and unzip the selected subtitles
             if opt_gui == 'gnome':
-                # Escape non-alphanumeric characters from the subtitles download path
-                subPath = escapePath(subPath)
+                # Escape non-alphanumeric characters from the subtitles download path for wget, and video title for zenity
+                subPathEscaped = escapePath_wget(subPath)
+                videoTitleEscaped = escapeGUI_zenity(videoTitle)
                 # Download with wget, piped into zenity --progress
-                process_subtitlesDownload = subprocess.call(f'(wget -q -O "{subPath}" {subURL}) 2>&1'
-                                                            + ' | (zenity --auto-close --progress --pulsate --title="Downloading subtitles, please wait..." --text="Downloading <b>'
-                                                            + subLangName + '</b> subtitles for <b>' + videoTitle + '</b>...")', shell=True)
-            else: # CLI
-                print(">> Downloading '" + subtitlesResultList['data'][subIndex]['attributes']['language'] + "' subtitles for '" + videoTitle + "'")
+                process_subtitlesDownload = subprocess.call(f'(wget -q -O "{subPathEscaped}" "{subURL}") 2>&1 ' +
+                                                             '| (zenity --auto-close --progress --pulsate --title="Downloading subtitles, please wait..." ' +
+                                                            f'--text="Downloading <b>{subLangName}</b> subtitles for <b>{videoTitleEscaped}</b>...")', shell=True)
+            else:
+                if opt_gui == 'cli':
+                    print(f">> Downloading '{subLangName}' subtitles for '{videoTitle}'")
                 process_subtitlesDownload = downloadSubtitles(USER_TOKEN, fileInfo['link'], subPath)
 
             # If an error occurs, say so
             if process_subtitlesDownload != 0:
-                superPrint("error", "Subtitling error!",
-                           "An error occurred while downloading or writing '<b>" + subtitlesResultList['data'][subIndex]['attributes']['language'] + "</b>' " +
-                           "subtitles for <b>" + videoTitle + "</b>.")
+                superPrint("error", "Subtitling error!", f"An error occurred while downloading or writing <b>{subLangName}</b> subtitles for <b>{videoTitle}</b>.")
                 sys.exit(2)
 
         ## HOOK # Use a secondary tool after a successful download?
@@ -1030,7 +1047,7 @@ try:
 
     ## Print a message if no subtitles have been found, for any of the languages
     if languageCount_results == 0:
-        superPrint("info", "No subtitles available :-(", '<b>No subtitles found</b> for this video:\n<i>' + videoFileName + '</i>')
+        superPrint("info", "No subtitles available :-(", f"<b>No subtitles found</b> for this video:<br><i>{videoFileName}</i>")
         ExitCode = 1
     else:
         ExitCode = 0
@@ -1044,13 +1061,13 @@ except urllib.error.HTTPError as e:
 except (OSError, IOError, RuntimeError, AttributeError, TypeError, NameError, KeyError):
     # An unknown error occur, let's apologize before exiting
     superPrint("error", "Unexpected error!",
-               "OpenSubtitlesDownload encountered an <b>unknown error</b>, sorry about that...\n\n" + \
-               "Error: <b>" + str(sys.exc_info()[0]).replace('<', '[').replace('>', ']') + "</b>\n" + \
-               "Line: <b>" + str(sys.exc_info()[-1].tb_lineno) + "</b>\n\n" + \
-               "Just to be safe, please check:\n" + \
-               "- Your Internet connection status\n" + \
-               "- www.opensubtitles.com availability\n" + \
-               "- Your download limits (10 subtitles per 24h for non VIP users)\n" + \
+               "OpenSubtitlesDownload encountered an <b>unknown error</b>, sorry about that...<br><br>" + \
+               "Error: <b>" + str(sys.exc_info()[0]).replace('<', '[').replace('>', ']') + "</b><br>" + \
+               "Line: <b>" + str(sys.exc_info()[-1].tb_lineno) + "</b><br><br>" + \
+               "Just to be safe, please check:<br>" + \
+               "- Your Internet connection status<br>" + \
+               "- www.opensubtitles.com availability<br>" + \
+               "- Your download limits (10 subtitles per 24h for non VIP users)<br>" + \
                "- That are using the latest version of this software ;-)")
 
 except Exception:
