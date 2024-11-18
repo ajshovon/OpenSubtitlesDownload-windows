@@ -141,6 +141,11 @@ opt_selection_fps      = 'off'
 opt_selection_rating   = 'off'
 opt_selection_count    = 'off'
 
+# ==== HOOK ====================================================================
+
+# Use a secondary tool on the subtitles file after a successful download?
+custom_command = ""
+
 # ==== Check file path & type ==================================================
 
 def checkFileValidity(path):
@@ -1042,8 +1047,10 @@ try:
                 superPrint("error", "Subtitling error!", f"An error occurred while downloading or writing <b>{subLangName}</b> subtitles for <b>{videoTitle}</b>.")
                 sys.exit(2)
 
-        ## HOOK # Use a secondary tool after a successful download?
-        #process_subtitlesDownload = subprocess.call("(custom_command" + " " + subPath + ") 2>&1", shell=True)
+            ## HOOK # Use a secondary tool on the subtitles file after a successful download?
+            if process_subtitlesDownload == 0 and len(custom_command) > 0:
+                subPathEscaped = escapePath_wget(subPath)
+                process_subtitlesDownload = subprocess.call(f'{custom_command} "{subPathEscaped}"', shell=True)
 
     ## Print a message if no subtitles have been found, for any of the languages
     if languageCount_results == 0:
