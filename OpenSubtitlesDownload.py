@@ -1002,20 +1002,18 @@ try:
             if opt_language_suffix == 'on':
                 subPath = subPath.rsplit('.', 1)[0] + opt_language_suffix_separator + subtitlesResultList['data'][int(subIndex)]['attributes']['language'] + '.' + subSuffix
 
-            # Escape non-alphanumeric characters from the subtitles download path
-            subPath = escapePath(subPath)
-
             # Empty videoTitle?
             if not videoTitle:
                 videoTitle = videoFileName
 
             ## Download and unzip the selected subtitles
             if opt_gui == 'gnome':
-                process_subtitlesDownload = subprocess.call("(wget -q -O \"" + subPath + "\" " + subURL + ") 2>&1"
+                # Escape non-alphanumeric characters from the subtitles download path
+                subPath = escapePath(subPath)
+                # Download with wget, piped into zenity --progress
+                process_subtitlesDownload = subprocess.call(f'(wget -q -O "{subPath}" {subURL}) 2>&1'
                                                             + ' | (zenity --auto-close --progress --pulsate --title="Downloading subtitles, please wait..." --text="Downloading <b>'
                                                             + subLangName + '</b> subtitles for <b>' + videoTitle + '</b>...")', shell=True)
-            elif opt_gui == 'kde':
-                process_subtitlesDownload = subprocess.call("(wget -q -O \"" + subPath + "\" " + subURL + ") 2>&1", shell=True)
             else: # CLI
                 print(">> Downloading '" + subtitlesResultList['data'][subIndex]['attributes']['language'] + "' subtitles for '" + videoTitle + "'")
                 process_subtitlesDownload = downloadSubtitles(USER_TOKEN, fileInfo['link'], subPath)
